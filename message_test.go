@@ -27,6 +27,23 @@ func TestNewFloatMessage(t *testing.T) {
 	t.Log("ok")
 }
 
+func TestNewObjectMessage(t *testing.T) {
+
+	type Event struct {
+		Field1 int
+		Field2 int
+	}
+	obj:= []Event{}
+
+	obj = append(obj,Event{
+		Field1: 1,
+		Field2: 2,
+	})
+	msg := NewMessage("evt.timeline.report", "kind-owl",VTypeObject, obj, nil, nil, nil)
+	bObj ,_ :=  msg.SerializeToJson()
+	t.Log("ok",string(bObj))
+}
+
 func TestFimpMessage_SerializeBool(t *testing.T) {
 	msg := NewBoolMessage("cmd.binary.set", "out_bin_switch", true, nil, nil, nil)
 	serVal, err := msg.SerializeToJson()
@@ -70,8 +87,17 @@ func BenchmarkFimpMessage_Serialize2(b *testing.B) {
 	}
 }
 
+func TestNewMessageFromBytes_CorruptedPayload1(t *testing.T) {
+	msgString := "{123456789-=#$%"
+	_, err := NewMessageFromBytes([]byte(msgString))
+	if err != nil {
+		t.Log(err)
+	}
+	t.Log("ok")
+}
+
 func TestNewMessageFromBytes_BoolValue(t *testing.T) {
-	msgString := "{\"serv\":\"out_bin_switch\",\"type\":\"cmd.binary.set\",\"val_t\":\"bool\",\"val\":true,\"props\":null,\"tags\":null}"
+	msgString := "{\"serv\":\"out_bin_switch\",\"type\":\"cmd.binary.set\",\"val_t\":\"bool\",\"val\":true,\"props\":{\"p1\":\"pv1\"},\"tags\":null}"
 	fimp, err := NewMessageFromBytes([]byte(msgString))
 	if err != nil {
 		t.Error(err)
@@ -79,6 +105,9 @@ func TestNewMessageFromBytes_BoolValue(t *testing.T) {
 	val, err := fimp.GetBoolValue()
 	if val != true {
 		t.Error("Wrong value")
+	}
+	if fimp.Properties["p1"]!="pv1" {
+		t.Error("Wrong props value")
 	}
 	t.Log("ok")
 }
@@ -113,7 +142,7 @@ func TestFimpMessage_GetStrArrayValue(t *testing.T) {
 }
 
 func TestFimpMessage_GetIntArrayValue(t *testing.T) {
-	msgString := "{\"serv\":\"dev_sys\",\"type\":\"cmd.config.set\",\"val_t\":\"str_array\",\"val\":[123,1234],\"props\":null,\"tags\":null}"
+	msgString := "{\"serv\":\"dev_sys\",\"type\":\"cmd.config.set\",\"val_t\":\"int_array\",\"val\":[123,1234],\"props\":null,\"tags\":null}"
 	fimp, err := NewMessageFromBytes([]byte(msgString))
 	if err != nil {
 		t.Error(err)

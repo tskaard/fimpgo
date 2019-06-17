@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/buger/jsonparser"
+	"github.com/satori/go.uuid"
 )
 
 const (
+	TimeFormat      = "2006-01-02T15:04:05.999+01:00"
 	VTypeString     = "string"
 	VTypeInt        = "int"
 	VTypeFloat      = "float"
@@ -21,6 +23,7 @@ const (
 	VTypeFloatArray = "float_array"
 	VTypeBoolArray  = "bool_array"
 	VTypeObject     = "object"
+	VTypeBinary     = "bin"
 	VTypeNull       = "null"
 )
 
@@ -37,7 +40,9 @@ type FimpMessage struct {
 	Properties    Props       `json:"props"`
 	Version       string      `json:"ver"`
 	CorrelationID string      `json:"corid"`
-	CreationTime  time.Time   `json:"ctime"`
+	ResponseToTopic string    `json:"resp_to,omitempty"`
+	Source        string      `json:"src,omitempty"`
+	CreationTime  string      `json:"ctime"`
 	UID           string      `json:"uid"`
 }
 
@@ -166,10 +171,14 @@ func NewMessage(type_ string, service string, valueType string, value interface{
 		Tags:       tags,
 		Properties: props,
 		Version:    "1",
+		CreationTime:time.Now().Format(TimeFormat),
+		UID:uuid.NewV4().String(),
 	}
+
 	if requestMessage != nil {
 		msg.CorrelationID = requestMessage.UID
 	}
+
 	return &msg
 }
 
@@ -231,6 +240,10 @@ func NewMessageFromBytes(msg []byte) (*FimpMessage, error) {
 	fimpmsg.Type, err = jsonparser.GetString(msg, "type")
 	fimpmsg.Service, err = jsonparser.GetString(msg, "serv")
 	fimpmsg.ValueType, err = jsonparser.GetString(msg, "val_t")
+	fimpmsg.UID, _ = jsonparser.GetString(msg, "uid")
+	fimpmsg.CorrelationID, _ = jsonparser.GetString(msg, "corid")
+	fimpmsg.CreationTime, _ = jsonparser.GetString(msg, "ctime")
+
 	switch fimpmsg.ValueType {
 	case VTypeString:
 		fimpmsg.Value, err = jsonparser.GetString(msg, "val")
@@ -307,6 +320,11 @@ func NewMessageFromBytes(msg []byte) (*FimpMessage, error) {
 		fimpmsg.ValueObj, _, _, err = jsonparser.Get(msg, "val")
 
 	}
+	fimpmsg.Properties = make(Props)
+	jsonparser.ObjectEach(msg, func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
+		fimpmsg.Properties[string(key)],err = jsonparser.ParseString(value)
+		return nil
+	}, "props")
 
 	return &fimpmsg, err
 
